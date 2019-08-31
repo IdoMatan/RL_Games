@@ -66,7 +66,7 @@ class FaceDetect:
         # Path to frozen detection graph. This is the actual model that is used for the object detection.
         self.PATH_TO_CKPT = './tensorflow-face-detection/model/frozen_inference_graph_face.pb'
 
-        # List of the strings that is used to add correct label for each box.
+        # List of the strings that is used to add correct labpipel for each box.
         self.PATH_TO_LABELS = './tensorflow-face-detection/protos/face_label_map.pbtxt'
 
         self.NUM_CLASSES = 2

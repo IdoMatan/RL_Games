@@ -1,6 +1,8 @@
 import cv2
 import time
 import numpy as np
+import ArduinoServoControl
+import tensorflow as tf
 
 
 class Sample:
@@ -17,9 +19,40 @@ class Sample:
         self.reward = 0
 
 
-def capture(length, camID=0):
+class Q_function:
+    def __init__(self, model):
+        self.model = model
+        print('Q function initialized')
 
+    def predict_action(self, state):
+        IMG_SIZE = 160
+        # state = tf.cast(state, tf.float32)
+        # state = (state / 127.5) - 1
+        # state = tf.image.resize(state, (IMG_SIZE, IMG_SIZE))
+
+        # state = tf.cast(state, tf.float32)
+        state = (state / 127.5) - 1
+        state = cv2.resize(state, (IMG_SIZE, IMG_SIZE))
+
+        action = self.model.predict(state[np.newaxis])    # action is a 3x1 vector (cell for each possible action)
+        return action
+
+    def update_model(self, new_model):
+        self.model = new_model
+
+
+def capture(model, length, camID=0, first_run=0):
+    print('Initializing camera')
     camera = cv2.VideoCapture(camID)
+    print('Initializing servo')
+    servo = ArduinoServoControl.ServoControl(
+        port='/dev/cu.usbmodem14101',
+        baudrate=9600,
+        start_angle=np.random.randint(0, 180))
+
+    if not first_run:
+        Q_func = Q_function(model)
+
     epoch = []
 
     print('Capturing video')
@@ -31,29 +64,35 @@ def capture(length, camID=0):
             print('ret = 0 for some reason')
             break
 
+        image = cv2.resize(image, (240, 240))
         [h, w] = image.shape[:2]
 
         image = cv2.flip(image, 1)
 
-        Q_value = Q_function(image)
+        if not first_run:
+            Q_value = Q_func.predict_action(image)              # return 3 possible options (actions and their score)
+            action = epsilon_greedy(np.argmax(Q_value))         # Choose argmax action (or epsilon greedy)
 
-        action = epsilon_greedy(np.argmax(Q_value))
+        else:
+            action = pure_exploration()
+            Q_value = np.zeros((1, 3))
+            Q_value[:, int(action)] = 1
+
+        servo.execute_action(action, dtheta=5)
+        time.sleep(0.5)
 
         epoch.append(Sample(current_time, pic, image, action, Q_value))
 
     return epoch
 
 
-def Q_function(state, n_actions=3):
-    # insert some sort of neural network to predict action from state
-
-    action = np.random.rand(n_actions)
-    action = action/np.linalg.norm(action)
-
+def pure_exploration():
+    # action = np.random.randint(0, 2)
+    action = 0
     return action
 
 
-def epsilon_greedy(action, epsilon=0.2):
+def epsilon_greedy(action, epsilon=0.3):
 
     if np.random.rand() > epsilon:
         return action
@@ -61,7 +100,39 @@ def epsilon_greedy(action, epsilon=0.2):
         return np.random.randint(0, 2)
 
 
+def deploy(model, camID=0):
+    print('Initializing camera')
+    camera = cv2.VideoCapture(camID)
+    print('Initializing servo')
+    servo = ArduinoServoControl.ServoControl(
+        port='/dev/cu.usbmodem14101',
+        baudrate=9600,
+        start_angle=np.random.randint(0, 180))
 
+    Q_func = Q_function(model)
+
+    print('Capturing video')
+    while True:
+        ret, image = camera.read()
+        current_time = time.time()
+
+        if ret == 0:
+            print('ret = 0 for some reason')
+            break
+
+        image = cv2.resize(image, (240, 240))
+        [h, w] = image.shape[:2]
+
+        image = cv2.flip(image, 1)
+
+        Q_value = Q_func.predict_action(image)              # return 3 possible options (actions and their score)
+
+        print(Q_value)
+        action = np.argmax(Q_value)        # Choose argmax action (or epsilon greedy)
+
+
+        servo.execute_action(action, dtheta=5)
+        # time.sleep(0.5)
 
 
 # if __name__ == "__main__":

@@ -1,6 +1,5 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-# import matplotlib.pyplot as plt
 import tensorflow as tf
 keras = tf.keras
 import numpy as np
@@ -76,8 +75,10 @@ def Q_func_update(train_batches, model, epoches):
     for i in range(len(image_batch)):
         train_images[i, :, :, :] = image_batch[i]
 
-    y = np.round(train_batches[1]).astype(int) - 1
-    y = tf.keras.utils.to_categorical(y,num_classes=3, dtype='float32')
+    # y = np.round(train_batches[1]).astype(int) - 1
+    # y = tf.keras.utils.to_categorical(y, num_classes=3, dtype='float32')
+
+    y = train_batches[1]
 
     train_images = format_example(train_images)
 
