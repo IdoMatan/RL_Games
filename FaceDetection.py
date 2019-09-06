@@ -82,12 +82,14 @@ class FaceDetect:
         centers = []
         for j, box in enumerate(boxes):
             for i, face in enumerate(box):
-                if score[j, i] > 0.7:
+                if score[j, i] > 0.5:
                     center = (int((face[3] + face[1]) * w / 2), int((face[2] + face[0]) * h / 2))
                     dx = (center[0] - w / 2) ** 2
                     dy = (center[1] - h / 2) ** 2
-                    reward += np.exp(-dx / 10000) * score[j, i]
+                    reward += np.exp(-dx / 100000)  # * score[j, i]
                     centers.append(center)
+
+        print('# of faces detected:', len(centers))
         return centers, reward
 
 

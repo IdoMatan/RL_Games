@@ -6,7 +6,7 @@ import tensorflow as tf
 
 
 class Sample:
-    def __init__(self, time, index, state, action, Qvalue):
+    def __init__(self, time, index, state, action, Qvalue, current_angle):
         self.time = time
         self.index = index
         self.state = state
@@ -14,6 +14,7 @@ class Sample:
         self.Q_value = Qvalue
         self.reward = 0
         self.next_state = self.index + 1
+        self.angle = current_angle
 
     def get_reward(self):
         self.reward = 0
@@ -46,7 +47,7 @@ def capture(model, length, camID=0, first_run=0):
     camera = cv2.VideoCapture(camID)
     print('Initializing servo')
     servo = ArduinoServoControl.ServoControl(
-        port='/dev/cu.usbmodem14101',
+        port='/dev/ttyACM0',
         baudrate=9600,
         start_angle=np.random.randint(0, 180))
 
@@ -57,16 +58,17 @@ def capture(model, length, camID=0, first_run=0):
 
     print('Capturing video')
     for pic in range(length):
+        n_images = 3
         ret, image = camera.read()
-        current_time = time.time()
 
         if ret == 0:
             print('ret = 0 for some reason')
             break
 
-        image = cv2.resize(image, (240, 240))
-        [h, w] = image.shape[:2]
+        current_time = time.time()
 
+        # image = cv2.resize(image, (700, 700))
+        [h, w] = image.shape[:2]
         image = cv2.flip(image, 1)
 
         if not first_run:
@@ -76,12 +78,12 @@ def capture(model, length, camID=0, first_run=0):
         else:
             action = pure_exploration()
             Q_value = np.zeros((1, 3))
-            Q_value[:, int(action)] = 1
+            # Q_value[:, int(action)] = 0
 
         servo.execute_action(action, dtheta=5)
-        time.sleep(0.5)
+        time.sleep(0.75)
 
-        epoch.append(Sample(current_time, pic, image, action, Q_value))
+        epoch.append(Sample(current_time, pic, image, action, Q_value, servo.current_angle))
 
     return epoch
 
@@ -92,7 +94,7 @@ def pure_exploration():
     return action
 
 
-def epsilon_greedy(action, epsilon=0.3):
+def epsilon_greedy(action, epsilon=0.5):
 
     if np.random.rand() > epsilon:
         return action
@@ -105,7 +107,7 @@ def deploy(model, camID=0):
     camera = cv2.VideoCapture(camID)
     print('Initializing servo')
     servo = ArduinoServoControl.ServoControl(
-        port='/dev/cu.usbmodem14101',
+        port='/dev/ttyACM0',
         baudrate=9600,
         start_angle=np.random.randint(0, 180))
 
@@ -120,7 +122,7 @@ def deploy(model, camID=0):
             print('ret = 0 for some reason')
             break
 
-        image = cv2.resize(image, (240, 240))
+        image = cv2.resize(image, (500, 500))
         [h, w] = image.shape[:2]
 
         image = cv2.flip(image, 1)
