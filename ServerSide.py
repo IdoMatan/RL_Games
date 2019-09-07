@@ -3,21 +3,25 @@ from EdgeDevice import *
 from Q_func import *
 import os
 
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+# os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
 def match_rewards(episode):
     print('Matching rewards')
     face_detect = FaceDetect()
-
+    last_angle = -1
     for sample in episode:
         (boxes, scores, classes, num_detections) = face_detect.tDetector.run(sample.state)
 
         [h, w] = sample.state.shape[:2]
 
         centers, reward = face_detect.calc_reward(boxes, h, w, scores)
+        if reward == 0:
+            if last_angle == sample.angle:
+                reward -= 1
 
         sample.reward = reward - 1
+        last_angle = sample.angle
 
         print('Reward =', reward-1)
 
@@ -47,7 +51,7 @@ def calc_errors(episode):
 if __name__ == '__main__':
     # trigger edge device to run and send episode
     print('First run, capture data')
-    episode = capture(model=0, length=10, camID=0, first_run=1)
+    episode = capture(model=0, length=10, camID=1, first_run=1)
 
     # calculate reward for each state (depends on the state only)
     print('Match rewards')
@@ -67,7 +71,7 @@ if __name__ == '__main__':
     # send new model to edge device
     for i in range(15):
         print('Iteration #', i)
-        episode = capture(model, length=40, camID=0)
+        episode = capture(model, length=50, camID=1)
 
         # calculate reward for each state (depends on the state only)
         match_rewards(episode)
