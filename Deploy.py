@@ -3,7 +3,7 @@ keras = tf.keras
 from EdgeDevice import *
 import os
 
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 model = tf.keras.models.load_model('./trained_model')
 
