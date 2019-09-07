@@ -10,7 +10,7 @@ import serial  # import serial library
 import time
 
 class ServoControl:
-    def __init__(self, port='/dev/cu.usbmodem14101', baudrate=9600, start_angle=0):
+    def __init__(self, port='/dev/ttyACMO', baudrate=9600, start_angle=0):
         self.arduino = serial.Serial(port, baudrate)  # create serial object named arduino
         self.current_angle = start_angle
         self.set_servo_angle(self.current_angle)
