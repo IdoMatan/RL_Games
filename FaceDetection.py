@@ -56,7 +56,7 @@ class TensoflowFaceDector(object):
             [boxes, scores, classes, num_detections],
             feed_dict={image_tensor: image_np_expanded})
         elapsed_time = time.time() - start_time
-        print('inference time cost: {}'.format(elapsed_time))
+        # print('inference time cost: {}'.format(elapsed_time))
 
         return (boxes, scores, classes, num_detections)
 
@@ -82,7 +82,7 @@ class FaceDetect:
         centers = []
         for j, box in enumerate(boxes):
             for i, face in enumerate(box):
-                if score[j, i] > 0.5:
+                if score[j, i] > 0.6:
                     center = (int((face[3] + face[1]) * w / 2), int((face[2] + face[0]) * h / 2))
                     dx = (center[0] - w / 2) ** 2
                     dy = (center[1] - h / 2) ** 2

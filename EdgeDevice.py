@@ -42,48 +42,66 @@ class Q_function:
         self.model = new_model
 
 
-def capture(model, length, camID=0, first_run=0):
+def capture(model, length, camID=1, run_number=0):
     print('Initializing camera')
     camera = cv2.VideoCapture(camID)
     print('Initializing servo')
-    servo = ArduinoServoControl.ServoControl(
-        port='/dev/ttyACM0',
-        baudrate=9600,
-        start_angle=np.random.randint(0, 180))
+    try:
+        servo = ArduinoServoControl.ServoControl(
+            port='/dev/ttyACM0',
+            baudrate=9600,
+            start_angle=np.random.randint(0, 180))
 
-    if not first_run:
+    except:
+        print('trying Mac port')
+        servo = ArduinoServoControl.ServoControl(
+            port='/dev/cu.usbmodem14201',
+            baudrate=9600,
+            start_angle=np.random.randint(0, 180))
+    else:
+        print('Using Ubuntu port')
+
+    if run_number > 0:
         Q_func = Q_function(model)
 
     epoch = []
 
     print('Capturing video')
     for pic in range(length):
+        resize_shape = (700, 700)
         n_images = 3
-        ret, image = camera.read()
+        image_array = [np.zeros(resize_shape)]*n_images
 
-        if ret == 0:
-            print('ret = 0 for some reason')
-            break
+        for frame in range(n_images):
+            ret, image = camera.read()
 
-        current_time = time.time()
+            if ret == 0:
+                print('ret = 0 for some reason')
+                break
 
-        # image = cv2.resize(image, (700, 700))
-        [h, w] = image.shape[:2]
-        image = cv2.flip(image, 1)
+            current_time = time.time()
 
-        if not first_run:
+            image = cv2.resize(image, resize_shape)
+            [h, w] = image.shape[:2]
+            image = cv2.flip(image, 1)
+
+            image_array[frame] = image
+
+        if run_number > 0:
             Q_value = Q_func.predict_action(image)              # return 3 possible options (actions and their score)
-            action = epsilon_greedy(np.argmax(Q_value))         # Choose argmax action (or epsilon greedy)
+            action = epsilon_greedy(np.argmax(Q_value),
+                                    epsilon=np.exp(-run_number*0.05))   # Choose argmax action (or epsilon greedy)
+            # action = weighted_selection(Q_value)
 
         else:
             action = pure_exploration()
             Q_value = np.zeros((1, 3))
-            # Q_value[:, int(action)] = 0
 
         servo.execute_action(action, dtheta=5)
         time.sleep(0.75)
 
-        epoch.append(Sample(current_time, pic, image, action, Q_value, servo.current_angle))
+        # epoch.append(Sample(current_time, pic, image, action, Q_value, servo.current_angle))
+        epoch.append(Sample(current_time, pic, image_array, action, Q_value, servo.current_angle))
 
     return epoch
 
@@ -102,14 +120,33 @@ def epsilon_greedy(action, epsilon=0.5):
         return np.random.randint(0, 2)
 
 
+def weighted_selection(Q_values):
+    probs = np.abs(Q_values[0] / np.sum(np.abs(Q_values[0])))
+
+    action = np.random.choice(3, 1, p=probs)
+
+    return int(action)
+
+
 def deploy(model, camID=0):
     print('Initializing camera')
     camera = cv2.VideoCapture(camID)
     print('Initializing servo')
-    servo = ArduinoServoControl.ServoControl(
-        port='/dev/ttyACM0',
-        baudrate=9600,
-        start_angle=np.random.randint(0, 180))
+
+    try:
+        servo = ArduinoServoControl.ServoControl(
+            port='/dev/ttyACM0',
+            baudrate=9600,
+            start_angle=np.random.randint(0, 180))
+
+    except:
+        print('trying Mac port')
+        servo = ArduinoServoControl.ServoControl(
+            port='/dev/cu.usbmodem14201',
+            baudrate=9600,
+            start_angle=np.random.randint(0, 180))
+    else:
+        print('Using Ubuntu port')
 
     Q_func = Q_function(model)
 
